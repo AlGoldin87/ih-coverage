@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyd
+*.so
+*.dll
+build/
+dist/
+*.egg-info/
+.venv/
+venv/
+
+# VS
+.vs/
+Debug/
+Release/
+*.obj
+*.exe
+*.pdb
+
+# VS Code
+.vscode/
