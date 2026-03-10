@@ -153,12 +153,40 @@ PYBIND11_MODULE(ih_coverage, m) {
           "    dict with coverage report and recommendations");
 
     m.def("discretize", [](py::array_t<float> data, float sharpness) {
-        auto cpp_data = numpy_to_vector(data);
-        std::vector<std::vector<int>> result;
-        for (const auto& row : cpp_data) {
-            result.push_back(discretize_feature(row, sharpness));
+        auto buf = data.request();
+        float* ptr = static_cast<float*>(buf.ptr);
+        size_t rows = buf.shape[0];
+        size_t cols = buf.shape[1];
+        
+        // Результат: сначала дискретизируем по столбцам
+        std::vector<std::vector<int>> col_results(cols, std::vector<int>(rows));
+        
+        // 1. Дискретизация по столбцам
+        for (size_t j = 0; j < cols; j++) {
+            // Собираем столбец j
+            std::vector<float> column(rows);
+            for (size_t i = 0; i < rows; i++) {
+                column[i] = ptr[i * cols + j];
+            }
+            
+            // Дискретизируем столбец
+            auto binned_col = discretize_feature(column, sharpness);
+            
+            // Записываем в колоночный результат
+            for (size_t i = 0; i < rows; i++) {
+                col_results[j][i] = binned_col[i];
+            }
         }
-        return result;
+        
+        // 2. Транспонируем обратно в строки (rows × cols)
+        std::vector<std::vector<int>> final_result(rows, std::vector<int>(cols));
+        for (size_t i = 0; i < rows; i++) {
+            for (size_t j = 0; j < cols; j++) {
+                final_result[i][j] = col_results[j][i];
+            }
+        }
+        
+        return final_result;
     }, py::arg("data"), py::arg("sharpness"),
        "Discretize data using given sharpness");
 
