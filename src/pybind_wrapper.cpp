@@ -26,55 +26,110 @@ std::vector<std::vector<float>> numpy_to_vector(py::array_t<float> input) {
     return result;
 }
 
-// Функция для одного столбца - рекомендуемая резкость
-float recommend_sharpness(const std::vector<float>& data, int min_per_interval = 5) {
-    if (data.empty()) return 1.0f;
+// Функция для определения минимального шага по данным
+float detect_min_step(const std::vector<float>& data) {
+    if (data.size() < 2) return 1.0f;
     
-    // Начинаем с крупных интервалов
-    for (int n_int = 2; n_int <= 20; n_int++) {
-        float sharpness = 2.0f / n_int;
-        
-        // Дискретизация
-        float min_val = *std::min_element(data.begin(), data.end());
-        float max_val = *std::max_element(data.begin(), data.end());
-        float step = (max_val - min_val) / n_int;
-        if (step < 1e-10f) step = 1.0f;
-        
-        std::vector<int> binned(data.size());
-        for (size_t i = 0; i < data.size(); i++) {
-            int idx = static_cast<int>((data[i] - min_val) / step);
-            idx = std::max(0, std::min(idx, n_int - 1));
-            binned[i] = idx;
+    // Сортируем и ищем минимальную разницу между соседними уникальными значениями
+    std::vector<float> sorted = data;
+    std::sort(sorted.begin(), sorted.end());
+    
+    float min_step = 1e10f;
+    for (size_t i = 1; i < sorted.size(); i++) {
+        float diff = sorted[i] - sorted[i-1];
+        if (diff > 1e-10f && diff < min_step) {
+            min_step = diff;
         }
-        
-        // Проверяем наполненность (БЕЗ C++17)
-        std::unordered_map<int, int> counts;
-        for (size_t i = 0; i < data.size(); i++) {
-            counts[binned[i]]++;
-        }
-        
-        bool all_ok = true;
-        for (std::unordered_map<int, int>::iterator it = counts.begin(); it != counts.end(); ++it) {
-            if (it->second < min_per_interval) {
-                all_ok = false;
-                break;
-            }
-        }
-        
-        if (all_ok) return sharpness;
     }
     
-    return 2.0f / 20;  // если ничего не подошло
+    // Если все значения одинаковы или разница слишком мала
+    if (min_step > 1e9f) return 1.0f;
+    
+    return min_step;
 }
 
-// Обёртка для Python - один столбец
-float suggest_sharpness_1d(py::array_t<float> data, int min_per_interval = 5) {
+// Функция для построения эталонной дискретизации с минимальным шагом
+std::vector<int> discretize_reference(const std::vector<float>& data) {
+    float min_step = detect_min_step(data);
+    float min_val = *std::min_element(data.begin(), data.end());
+    float max_val = *std::max_element(data.begin(), data.end());
+    
+    // Число интервалов = (max - min) / min_step
+    int n_intervals = static_cast<int>(std::ceil((max_val - min_val) / min_step));
+    if (n_intervals < 2) n_intervals = 2;
+    
+    std::vector<int> result(data.size());
+    for (size_t i = 0; i < data.size(); i++) {
+        int idx = static_cast<int>((data[i] - min_val) / min_step);
+        idx = std::max(0, std::min(idx, n_intervals - 1));
+        result[i] = idx;
+    }
+    return result;
+}
+
+// Функция для одного столбца - рекомендуемая резкость (ВЕРСИЯ С ICC)
+float suggest_sharpness_1d(py::array_t<float> data, int min_per_interval = 5, float alpha = 1.0f) {
     auto buf = data.request();
     float* ptr = static_cast<float*>(buf.ptr);
     size_t size = buf.size;
-    
     std::vector<float> vec(ptr, ptr + size);
-    return recommend_sharpness(vec, min_per_interval);
+    
+    if (vec.empty()) return 1.0f;
+    
+    // ---- 1. Эталонная энтропия (минимальный шаг по данным) ----
+    auto binned_ref = discretize_reference(vec);
+    std::unordered_map<int, int> counts_ref;
+    for (int val : binned_ref) counts_ref[val]++;
+    
+    float n = (float)vec.size();
+    float h_sum_ref = 0.0f;
+    for (const auto& pair : counts_ref) {
+        float p = pair.second / n;
+        if (p > 0) h_sum_ref += p * log2(p);
+    }
+    float H_ref = -h_sum_ref;
+    
+    // ---- 2. Перебор резкостей ----
+    float best_icc = 1e10f;
+    float best_sharpness = 1.0f;
+    
+    for (float s = 0.1f; s <= 1.0f + 0.001f; s += 0.05f) {
+        auto binned = discretize_feature(vec, s);
+        
+        // H_current
+        std::unordered_map<int, int> counts;
+        for (int val : binned) counts[val]++;
+        
+        float h_sum = 0.0f;
+        for (const auto& pair : counts) {
+            float p = pair.second / n;
+            if (p > 0) h_sum += p * log2(p);
+        }
+        float H_current = -h_sum;
+        
+        // Loss (потеря информации при огрублении относительно эталона)
+        float loss = H_ref - H_current;
+        
+        // Penalty (штраф за ненадёжность интервалов)
+        float penalty = 0.0f;
+        for (const auto& pair : counts) {
+            penalty += 1.0f / pair.second;
+        }
+        
+        float icc = loss + alpha * penalty;
+        
+        if (icc < best_icc) {
+            best_icc = icc;
+            best_sharpness = s;
+        }
+    }
+    
+    return best_sharpness;
+}
+
+// Обёртка для Python - один столбец (старая версия, для совместимости)
+float suggest_sharpness_1d_old(py::array_t<float> data, int min_per_interval = 5) {
+    return suggest_sharpness_1d(data, min_per_interval, 1.0f);
 }
 
 // Обёртка для Python
@@ -165,5 +220,12 @@ PYBIND11_MODULE(ih_coverage, m) {
     m.def("suggest_sharpness", &suggest_sharpness_1d,
           py::arg("data"),
           py::arg("min_per_interval") = 5,
-          "Suggest optimal sharpness for a single column");
+          py::arg("alpha") = 1.0f,
+          "Suggest optimal sharpness using ICC criterion\n\n"
+          "Args:\n"
+          "    data: 1D numpy array\n"
+          "    min_per_interval: target minimum observations per interval (default 5)\n"
+          "    alpha: penalty coefficient for interval unreliability (default 1.0)\n\n"
+          "Returns:\n"
+          "    optimal sharpness value");
 }
