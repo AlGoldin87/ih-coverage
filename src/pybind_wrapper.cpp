@@ -207,12 +207,33 @@ PYBIND11_MODULE(ih_coverage, m) {
           "Returns:\n"
           "    dict with coverage report and recommendations");
 
+    // ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ DISCRETIZE ==========
     m.def("discretize", [](py::array_t<float> data, float sharpness) {
-        auto cpp_data = numpy_to_vector(data);
-        std::vector<std::vector<int>> result;
-        for (const auto& row : cpp_data) {
-            result.push_back(discretize_feature(row, sharpness));
+        auto buf = data.request();
+        float* ptr = static_cast<float*>(buf.ptr);
+        size_t rows = buf.shape[0];
+        size_t cols = buf.shape[1];
+        
+        // Результат: rows × cols
+        std::vector<std::vector<int>> result(rows, std::vector<int>(cols));
+        
+        // Дискретизируем каждый столбец
+        for (size_t j = 0; j < cols; j++) {
+            // Собираем столбец j
+            std::vector<float> column(rows);
+            for (size_t i = 0; i < rows; i++) {
+                column[i] = ptr[i * cols + j];
+            }
+            
+            // Дискретизируем столбец
+            auto binned = discretize_feature(column, sharpness);
+            
+            // Записываем сразу в результат
+            for (size_t i = 0; i < rows; i++) {
+                result[i][j] = binned[i];
+            }
         }
+        
         return result;
     }, py::arg("data"), py::arg("sharpness"),
        "Discretize data using given sharpness");

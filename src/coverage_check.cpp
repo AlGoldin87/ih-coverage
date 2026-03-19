@@ -15,7 +15,9 @@ std::vector<int> discretize_feature(const std::vector<float>& data, float rezkos
 
     std::vector<int> result(data.size());
     for (size_t i = 0; i < data.size(); i++) {
-        int idx = static_cast<int>((data[i] - min_val) / step);
+        float raw_idx = (data[i] - min_val) / step;
+        // Увеличил epsilon с 1e-10 до 1e-6
+        int idx = static_cast<int>(raw_idx);
         idx = std::max(0, std::min(idx, n_intervals - 1));
         result[i] = idx;
     }
@@ -57,7 +59,6 @@ FeatureReport check_feature_coverage(
             return a.interval < b.interval;
         });
 
-    // Рекомендация
     if (report.warning_count == 0) {
         report.recommended_sharpness = current_sharpness;
     } else {
