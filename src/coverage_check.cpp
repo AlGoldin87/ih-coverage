@@ -4,6 +4,7 @@
 #include <iostream>
 
 std::vector<int> discretize_feature(const std::vector<float>& data, float rezkost) {
+        std::cerr << "VERSION: 2025-03-21-fix-direct-index" << std::endl;
     if (data.empty()) return {};
 
     float min_val = *std::min_element(data.begin(), data.end());
