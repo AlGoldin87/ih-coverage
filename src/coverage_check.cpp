@@ -10,15 +10,16 @@ std::vector<int> discretize_feature(const std::vector<float>& data, float rezkos
     float max_val = *std::max_element(data.begin(), data.end());
 
     int n_intervals = static_cast<int>(std::round(2.0f / rezkost));
+    if (n_intervals < 2) n_intervals = 2;
+    
     float step = (max_val - min_val) / n_intervals;
     if (step < 1e-10f) step = 1.0f;
 
     std::vector<int> result(data.size());
     for (size_t i = 0; i < data.size(); i++) {
-        float raw_idx = (data[i] - min_val) / step;
-        // Увеличил epsilon с 1e-10 до 1e-6
-        int idx = static_cast<int>(raw_idx);
-        idx = std::max(0, std::min(idx, n_intervals - 1));
+        int idx = static_cast<int>((data[i] - min_val) / step);
+        if (idx >= n_intervals) idx = n_intervals - 1;
+        if (idx < 0) idx = 0;
         result[i] = idx;
     }
     return result;
