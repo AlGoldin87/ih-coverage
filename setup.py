@@ -1,5 +1,12 @@
 from setuptools import setup, Extension
 import pybind11
+import sys
+
+# Определяем флаги в зависимости от ОС
+if sys.platform == 'win32':
+    compile_args = ['-std=c++11']
+else:
+    compile_args = ['-std=c++11', '-O3', '-fPIC']
 
 ext_modules = [
     Extension(
@@ -10,7 +17,7 @@ ext_modules = [
             pybind11.get_include()
         ],
         language='c++',
-        extra_compile_args=['-std=c++11'],
+        extra_compile_args=compile_args,
     ),
 ]
 
