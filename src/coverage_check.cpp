@@ -4,17 +4,17 @@
 #include <iostream>
 
 std::vector<int> discretize_feature(const std::vector<float>& data, float rezkost) {
-    std::cerr << "\n========== DISCRETIZATION DEBUG ==========" << std::endl;
+    std::cout << "\n========== DISCRETIZATION DEBUG ==========" << std::endl;
     
     // 1. Входные параметры
-    std::cerr << "rezkost = " << rezkost << std::endl;
-    std::cerr << "data.size() = " << data.size() << std::endl;
+    std::cout << "rezkost = " << rezkost << std::endl;
+    std::cout << "data.size() = " << data.size() << std::endl;
     if (!data.empty()) {
-        std::cerr << "data[0..4] = ";
+        std::cout << "data[0..4] = ";
         for (size_t i = 0; i < std::min(data.size(), size_t(5)); i++) {
-            std::cerr << data[i] << " ";
+            std::cout << data[i] << " ";
         }
-        std::cerr << std::endl;
+        std::cout << std::endl;
     }
     
     if (data.empty()) return {};
@@ -22,35 +22,35 @@ std::vector<int> discretize_feature(const std::vector<float>& data, float rezkos
     // 2. Min / Max
     float min_val = *std::min_element(data.begin(), data.end());
     float max_val = *std::max_element(data.begin(), data.end());
-    std::cerr << "min_val = " << min_val << std::endl;
-    std::cerr << "max_val = " << max_val << std::endl;
-    std::cerr << "range = " << (max_val - min_val) << std::endl;
+    std::cout << "min_val = " << min_val << std::endl;
+    std::cout << "max_val = " << max_val << std::endl;
+    std::cout << "range = " << (max_val - min_val) << std::endl;
     
     // 3. Количество интервалов
     float n_intervals_float = 2.0f / rezkost;
     int n_intervals = static_cast<int>(std::round(n_intervals_float));
     if (n_intervals < 2) n_intervals = 2;
-    std::cerr << "n_intervals_float = " << n_intervals_float << std::endl;
-    std::cerr << "n_intervals (after round) = " << n_intervals << std::endl;
+    std::cout << "n_intervals_float = " << n_intervals_float << std::endl;
+    std::cout << "n_intervals (after round) = " << n_intervals << std::endl;
     
     // 4. Размер интервала
     float step = (max_val - min_val) / n_intervals;
-    std::cerr << "step = " << step << std::endl;
+    std::cout << "step = " << step << std::endl;
     
     // 5. Вычисление индексов для первых 5 значений
-    std::cerr << "\nFirst 5 values calculation:" << std::endl;
+    std::cout << "\nFirst 5 values calculation:" << std::endl;
     for (size_t i = 0; i < std::min(data.size(), size_t(5)); i++) {
         float val = data[i];
         float raw_idx = (val - min_val) / step;
         int idx = static_cast<int>(raw_idx);
         if (idx >= n_intervals) idx = n_intervals - 1;
         if (idx < 0) idx = 0;
-        std::cerr << "  val=" << val 
+        std::cout << "  val=" << val 
                   << " (val-min)=" << (val - min_val)
                   << " raw_idx=" << raw_idx
                   << " idx=" << idx << std::endl;
     }
-    std::cerr << "==========================================\n" << std::endl;
+    std::cout << "==========================================\n" << std::endl;
     
     // 6. Основной расчёт
     std::vector<int> result(data.size());
