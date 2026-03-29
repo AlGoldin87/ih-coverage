@@ -68,7 +68,7 @@ std::vector<int> discretize_reference(const std::vector<float>& data) {
 }
 
 // Функция для одного столбца - рекомендуемая резкость (ВЕРСИЯ С ICC)
-float suggest_sharpness_1d(py::array_t<float> data, int min_per_interval = 5, float alpha = 1.0f) {
+float suggest_sharpness_1d(py::array_t<float> data, float alpha = 1.0f) {
     auto buf = data.request();
     float* ptr = static_cast<float*>(buf.ptr);
     size_t size = buf.size;
@@ -240,12 +240,12 @@ PYBIND11_MODULE(ih_coverage, m) {
 
     m.def("suggest_sharpness", &suggest_sharpness_1d,
           py::arg("data"),
-          py::arg("min_per_interval") = 5,
+          
           py::arg("alpha") = 1.0f,
           "Suggest optimal sharpness using ICC criterion\n\n"
           "Args:\n"
           "    data: 1D numpy array\n"
-          "    min_per_interval: target minimum observations per interval (default 5)\n"
+          
           "    alpha: penalty coefficient for interval unreliability (default 1.0)\n\n"
           "Returns:\n"
           "    optimal sharpness value");
