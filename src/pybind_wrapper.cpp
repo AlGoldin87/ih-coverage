@@ -238,7 +238,7 @@ PYBIND11_MODULE(ih_coverage, m) {
     }, py::arg("data"), py::arg("sharpness"),
        "Discretize data using given sharpness");
 
-    m.def("suggest_sharpness", &suggest_sharpness_1d,
+    m.def("_suggest_sharpness", &suggest_sharpness_1d,
           py::arg("data"),
           
           py::arg("alpha") = 1.0f,
