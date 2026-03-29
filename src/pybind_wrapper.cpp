@@ -127,11 +127,6 @@ float suggest_sharpness_1d(py::array_t<float> data, float alpha = 1.0f) {
     return best_sharpness;
 }
 
-// Обёртка для Python - один столбец (старая версия, для совместимости)
-float suggest_sharpness_1d_old(py::array_t<float> data, int min_per_interval = 5) {
-    return suggest_sharpness_1d(data, min_per_interval, 1.0f);
-}
-
 // Обёртка для Python
 py::dict check_coverage_py(py::array_t<float> data,
                            float sharpness,
