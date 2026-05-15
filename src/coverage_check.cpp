@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <limits>
 
 std::vector<int> discretize_feature(const std::vector<float>& data, float rezkost) {
     if (data.empty()) return {};
