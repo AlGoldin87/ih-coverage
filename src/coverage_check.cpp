@@ -6,21 +6,38 @@
 std::vector<int> discretize_feature(const std::vector<float>& data, float rezkost) {
     if (data.empty()) return {};
 
-    float min_val = *std::min_element(data.begin(), data.end());
-    float max_val = *std::max_element(data.begin(), data.end());
+    // 1. Находим min/max, игнорируя NaN
+    float min_val = std::numeric_limits<float>::max();
+    float max_val = std::numeric_limits<float>::lowest();
+    for (size_t i = 0; i < data.size(); i++) {
+        if (!std::isnan(data[i])) {
+            if (data[i] < min_val) min_val = data[i];
+            if (data[i] > max_val) max_val = data[i];
+        }
+    }
 
+    // 2. Если все значения NaN
+    if (min_val == std::numeric_limits<float>::max()) {
+        return std::vector<int>(data.size(), -1);
+    }
+
+    // 3. Вычисляем интервалы
     int n_intervals = static_cast<int>(std::round(2.0f / rezkost));
     if (n_intervals < 2) n_intervals = 2;
     
     float step = (max_val - min_val) / n_intervals;
     if (step < 1e-10f) step = 1.0f;
 
+    // 4. Дискретизация: NaN → -1, числа → 0, 1, 2...
     std::vector<int> result(data.size());
     for (size_t i = 0; i < data.size(); i++) {
-        int idx = static_cast<int>((data[i] - min_val) / step);
-        if (idx >= n_intervals) idx = n_intervals - 1;
-        if (idx < 0) idx = 0;
-        result[i] = idx;
+        if (std::isnan(data[i])) {
+            result[i] = -1;
+        } else {
+            int idx = static_cast<int>((data[i] - min_val) / step);
+            idx = std::max(0, std::min(idx, n_intervals - 1));
+            result[i] = idx;
+        }
     }
     return result;
 }
